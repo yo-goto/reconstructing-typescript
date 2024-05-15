@@ -13,38 +13,73 @@ function synthIdentifier(env: Env, ast: AST.Identifier): Type {
 }
 );
 
+// ---------------------
+// リテラル値の場合の型合成(独自定義の型への変換)
+// ---------------------
+/**
+ * Null型の合成(独自定義の型への変換)
+ */
 const synthNull = Trace.instrument('synthNull',
 function synthNull(env: Env, ast: AST.NullLiteral): Type {
   return Type.nullType;
 }
 );
 
+
+/**
+ * Boolean型の合成(独自定義の型への変換)
+ */
 const synthBoolean = Trace.instrument('synthBoolean',
 function synthBoolean(env: Env, ast: AST.BooleanLiteral): Type {
   return Type.boolean;
 }
 );
 
+
+/**
+ * Number型の合成(独自定義の型への変換)
+ */
 const synthNumber = Trace.instrument('synthNumber',
 function (env: Env, ast: AST.NumericLiteral): Type {
   return Type.number;
 }
 );
 
+
+/**
+ * String型の合成(独自定義の型への変換)
+ */
 const synthString = Trace.instrument('synthString',
 function synthString(env: Env, ast: AST.StringLiteral): Type {
   return Type.string;
 }
 );
 
+
+// ---------------------
+// オブジェクト型の場合の型合成(独自定義の型への変換)
+// ---------------------
+/**
+ * オブジェクト型の場合の独自定義の型への変換(独自定義の型への変換)
+ * 各プロパティの値式の型を合成して、オブジェクト型を作成する
+ */
 const synthObject = Trace.instrument('synthObject',
 function synthObject(env: Env, ast: AST.ObjectExpression): Type {
-  const properties =
+  const properties: Type.Object["properties"] =
     ast.properties.map(prop => {
-      if (!AST.isObjectProperty(prop)) bug(`unimplemented ${prop.type}`);
-      if (!AST.isIdentifier(prop.key)) bug(`unimplemented ${prop.key.type}`);
-      if (!AST.isExpression(prop.value)) bug(`unimplemented ${prop.value.type}`);
-      if (prop.computed) bug(`unimplemented computed`);
+      if (!AST.isObjectProperty(prop)) {
+        bug(`unimplemented ${prop.type}`);
+      }
+      if (!AST.isIdentifier(prop.key)) {
+        bug(`unimplemented ${prop.key.type}`);
+      }
+      if (!AST.isExpression(prop.value)) {
+        bug(`unimplemented ${prop.value.type}`);
+      }
+      if (prop.computed) {
+        bug(`unimplemented computed`);
+      }
+      // オブジェクトのプロパティ表現の型
       return {
         name: prop.key.name,
         type: synth(env, prop.value)
@@ -54,23 +89,51 @@ function synthObject(env: Env, ast: AST.ObjectExpression): Type {
 }
 );
 
+/**
+ * メンバー式の場合の型合成(独自定義の型への変換)
+ * 左側の型を合成して、オブジェクトかつ指定のプロパティが存在することを確認
+ * そのプロパティの型を返す
+ * ex) foo.bar => barの型を返す
+ */
 const synthMember = Trace.instrument('synthMember',
 function synthMember(env: Env, ast: AST.MemberExpression): Type {
   const prop = ast.property;
-  if (!AST.isIdentifier(prop)) bug(`unimplemented ${prop.type}`);
-  if (ast.computed) bug(`unimplemented computed`);
+  if (!AST.isIdentifier(prop)) {
+    bug(`unimplemented ${prop.type}`);
+  }
+  if (ast.computed) {
+    bug(`unimplemented computed`);
+  }
+
+  // メンバー式の左側がオブジェクト型であることを検証してオブジェクト型を得る
   const object = synth(env, ast.object);
-  if (!Type.isObject(object)) err('. expects object', ast.object);
+  if (!Type.isObject(object)) {
+    err('. expects object', ast.object);
+  }
+  // オブジェクトのプロパティの型を取得(あれば)
   const type = Type.propType(object, prop.name);
-  if (!type) err(`no such property ${prop.name}`, prop);
+  if (!type) {
+    // 指定したプロパティが無い場合はthrow
+    err(`no such property ${prop.name}`, prop);
+  }
+  // オブジェクトのプロパティの型を返す
   return type;
 }
 );
 
+/**
+ * as式の場合の型合成(独自定義の型への変換)
+ * 式をas式の型に照合するため切り替えが発生する
+ */
 const synthTSAs = Trace.instrument('synthTSAs',
 function synthTSAs(env: Env, ast: AST.TSAsExpression): Type {
+  // 式のAST表現を独自定義の型へ変換
   const type = Type.ofTSType(ast.typeAnnotation);
-  check(env, ast.expression, type);
+  // const x = 1 as string; // as式
+  //           ^:式 => AST
+  //             ^^^^^^^^^:既知の型 => Type
+  check(env, ast.expression, type); // 式を型に照合する
+  // => as式は合成から照合に切り替えることを伝えている
   return type;
 }
 );
@@ -114,23 +177,38 @@ function synthCall(env: Env, ast: AST.CallExpression): Type {
 }
 );
 
+/**
+ * ボトムアップの式から型の合成(独自定義の型への変換)
+ * @param ast Babelの型表現AST
+ * @returns 型表現 Type
+ */
 const synth = Trace.instrument('synth',
 function synth(env: Env, ast: AST.Expression): Type {
   switch (ast.type) {
+    // astの最上位の型についてcase分けして独自定義の型表現に変換
     case 'Identifier':              return synthIdentifier(env, ast);
     case 'NullLiteral':             return synthNull(env, ast);
-    case 'BooleanLiteral':          return synthBoolean(env, ast);
-    case 'NumericLiteral':          return synthNumber(env, ast);
-    case 'StringLiteral':           return synthString(env, ast);
-    case 'ObjectExpression':        return synthObject(env, ast);
-    case 'MemberExpression':        return synthMember(env, ast);
-    case 'TSAsExpression':          return synthTSAs(env, ast);
+
+    // プリミティブなリテラル値の場合は対応する型をそのまま返す
+    case 'NullLiteral':      return synthNull(env, ast);
+    case 'BooleanLiteral':   return synthBoolean(env, ast);
+    case 'NumericLiteral':   return synthNumber(env, ast);
+    case 'StringLiteral':    return synthString(env, ast);
+
+    // オブジェクト式: { x: 1 }
+    case 'ObjectExpression': return synthObject(env, ast);
+    // member式: foo.bar
+    case 'MemberExpression': return synthMember(env, ast);
+    // as式: 1 as number
+    case 'TSAsExpression':   return synthTSAs(env, ast);
+
     case 'ArrowFunctionExpression': return synthFunction(env, ast);
     case 'CallExpression':          return synthCall(env, ast);
 
+    // 未実装の型の場合はthrow
     default: bug(`unimplemented ${ast.type}`);
   }
 }
 );
 
-export default synth
+export default synth;

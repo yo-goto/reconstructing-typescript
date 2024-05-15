@@ -6,6 +6,7 @@ import ToString from './toString';
 import OfTSType from './ofTSType';
 import PropType from './propType';
 
+// type, construcotr, validator などの型関連の関数を一つのモジュールにまとめる
 module Type {
   export type Null = Types.Null;
   export type Boolean = Types.Boolean;
