@@ -1,14 +1,24 @@
 import * as Types from './types';
 
+// 独自定義した型のオブジェクトによる値表現
 export const nullType: Types.Null = { type: 'Null' };
 export const boolean: Types.Boolean = { type: 'Boolean' };
 export const number: Types.Number = { type: 'Number' };
 export const string: Types.String = { type: 'String' };
 
-export function object(properties: { name: string, type: Types.Type }[] | { [name: string]: Types.Type }): Types.Object {
+/**
+ * オブジェクト型のコンストラクター
+ * @param properties 2パターンの引数(プロパティ表現の型 or プロンプト名: 型)
+ * @returns オブジェクト型
+ */
+export function object(
+  properties: Types.ObjectProp[] | { [name: string]: Types.Type }
+): Types.Object {
   if (Array.isArray(properties)) {
+    // propertiesが配列なら
     return { type: 'Object', properties }
   } else {
-    return object(Object.entries(properties).map(([ name, type ]) => ({ name, type })));
+    // { x: number } のような形式の引数の場合には配列に変形して再帰処理
+    return object(Object.entries(properties).map(([name, type]) => ({ name, type })));
   }
 }

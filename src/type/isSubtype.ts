@@ -3,21 +3,45 @@ import * as Types from './types';
 import propType from './propType';
 import * as Type from './validators';
 
+/**
+ * 部分型の検査(第一引数の型が第二引数の型の部分型であるかを検査)
+ * @param fst 部分型を期待する型
+ * @param snd 上位型を期待する型
+ * @returns 真偽値 (fst <: snd => true)
+ */
 const isSubtype = Trace.instrument('isSubtype',
-function (a: Types.Type, b: Types.Type): boolean {
-  if (Type.isNull(a) && Type.isNull(b)) return true;
-  if (Type.isBoolean(a) && Type.isBoolean(b)) return true;
-  if (Type.isNumber(a) && Type.isNumber(b)) return true;
-  if (Type.isString(a) && Type.isString(b)) return true;
+function (fst: Types.Type, snd: Types.Type): boolean {
+  // プリミティブ型の比較(シンプルなケース)
+  // 両方ともにNull型である
+  if (Type.isNull(fst) && Type.isNull(snd)) return true;
+  // 両方ともにBoolean型である
+  if (Type.isBoolean(fst) && Type.isBoolean(snd)) return true;
+  // 両方ともにNumber型である
+  if (Type.isNumber(fst) && Type.isNumber(snd)) return true;
+  // 両方ともにString型である
+  if (Type.isString(fst) && Type.isString(snd)) return true;
 
-  if (Type.isObject(a) && Type.isObject(b)) {
-    return b.properties.every(({ name: bName, type: bType }) => {
-      const aType = propType(a, bName);
-      if (!aType) return false;
-      else return isSubtype(aType, bType);
-    });
+  // 両方ともオブジェクト型である場合
+  if (Type.isObject(fst) && Type.isObject(snd)) {
+    // snd型のすべてのプロパティがfst型に存在しているなら fst <: snd
+    // fst::{ x: number, y: number } <: snd::{ x: number }
+    // => より制約が強い型の方が部分型である
+    return snd.properties
+      .every(({ name: sndPropName, type: sndPropType }) => {
+        // sndのプロパティがfstにあるかを検証
+        const fstPropType = propType(fst, sndPropName);
+        if (!fstPropType) {
+          // sndのいずれかのプロパティがfstに無いならsndはfstの部分型ではない
+          return false;
+        }
+        else {
+          // fstPropTypeが存在している場合には再帰的に検証
+          return isSubtype(fstPropType, sndPropType);
+        }
+      });
   }
 
+  // どのケースにもあてはまらないなら部分型検証を失敗させる
   return false;
 }
 );

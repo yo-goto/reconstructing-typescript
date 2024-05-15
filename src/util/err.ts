@@ -23,7 +23,10 @@ export class Err extends Error {
   }
 }
 
-export function err(msg: string, location?: string | Node): never {
+export function err(
+  msg: string,
+  location?: string | Node
+): never {
   if (location) {
     if (typeof location === 'string')
       throw new Err(msg, location);
