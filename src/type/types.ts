@@ -34,6 +34,7 @@ export type Object = {
   properties: ObjectProp[];
 };
 
+// 関数型の表現
 export type Function = {
   type: 'Function';
   args: Type[];

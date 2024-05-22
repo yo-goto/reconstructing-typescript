@@ -36,6 +36,9 @@ export function isObject(type: Types.Type): type is Types.Object {
   return type.type === 'Object';
 }
 
+/**
+ * Function型であるかの述語
+ */
 export function isFunction(type: Types.Type): type is Types.Function {
   return type.type === 'Function';
 }

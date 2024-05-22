@@ -5,8 +5,12 @@ import Type from '../type';
 import check from './check';
 import Env from './env';
 
+/**
+ * 変数式の型合成
+ */
 const synthIdentifier = Trace.instrument('synthIdentifier',
 function synthIdentifier(env: Env, ast: AST.Identifier): Type {
+  // 型環境から変数名に対応する型を取得
   const type = env.get(ast.name);
   if (!type) err(`unbound identifier '${ast.name}'`, ast);
   return type;
@@ -138,6 +142,9 @@ function synthTSAs(env: Env, ast: AST.TSAsExpression): Type {
 }
 );
 
+/**
+ * 関数の本体の型を合成する
+ */
 const synthFunction = Trace.instrument('synthFunction',
 function synthFunction(env: Env, ast: AST.ArrowFunctionExpression): Type {
   if (!AST.isExpression(ast.body)) bug(`unimplemented ${ast.body.type}`)
@@ -186,9 +193,9 @@ const synth = Trace.instrument('synth',
 function synth(env: Env, ast: AST.Expression): Type {
   switch (ast.type) {
     // astの最上位の型についてcase分けして独自定義の型表現に変換
-    case 'Identifier':              return synthIdentifier(env, ast);
-    case 'NullLiteral':             return synthNull(env, ast);
 
+    // 変数式から型を合成
+    case 'Identifier':       return synthIdentifier(env, ast);
     // プリミティブなリテラル値の場合は対応する型をそのまま返す
     case 'NullLiteral':      return synthNull(env, ast);
     case 'BooleanLiteral':   return synthBoolean(env, ast);

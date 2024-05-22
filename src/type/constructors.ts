@@ -23,6 +23,12 @@ export function object(
   }
 }
 
+/**
+ * 関数型のコンストラクター
+ * @param args 引数の型
+ * @param ret 戻り値の型
+ * @returns 関数型表現
+ */
 export function functionType(args: Types.Type[], ret: Types.Type): Types.Function {
   return { type: 'Function', args, ret };
 }
